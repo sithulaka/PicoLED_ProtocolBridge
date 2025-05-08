@@ -1,0 +1,61 @@
+# Build directory
+build/
+pico-examples/
+pico-sdk/
+_deps/
+pioasm/
+pioasm-install/
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.elf
+
+# Generated files
+*.pio.h
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDE specific files
+.vscode/
+.idea/
+
+# macOS specific
+.DS_Store
+
+# Pico specific
+*.uf2
+*.bin
+*.dis
+*.hex
+*.map
+*.padded
