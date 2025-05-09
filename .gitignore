@@ -5,6 +5,7 @@ pico-sdk/
 _deps/
 pioasm/
 pioasm-install/
+pico-sdk
 
 # Prerequisites
 *.d
