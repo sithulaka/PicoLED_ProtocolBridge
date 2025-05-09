@@ -48,10 +48,7 @@ void LED::change_all_avalible_color(uint8_t r, uint8_t g, uint8_t b) {
 
 // Function to reset all LEDs to off state
 void LED::reset_all_color() {
-    pixel_grb = urgb_u32(0, 0, 0);
-    for (uint i = 0; i < num_pixels; ++i) {
-        led_array[i] = pixel_grb;
-    }
+    change_all_color(0, 0, 0);
 }
 
 void LED::push_array() {
@@ -77,13 +74,15 @@ void LED::Show_XY_Lines(){
         fast_set_color(i, 255, 0, 0);
         sleep_ms(100);
         }
-    for (uint i = 0; i < 57; i+=8) {
+    for (uint i = 0; i < 60; i+=8) {
         fast_set_color(i, 255, 0, 0);
         sleep_ms(100);
         }
     sleep_ms(1500);
     reset_all_color(); push_array();
 }
+
+
 
 void LED::fast_set_XY(uint X, uint Y, uint8_t r, uint8_t g, uint8_t b) {
     uint address = (X + ((Y-1) * 8));  // Assuming a grid of 8x8 LEDs

@@ -20,6 +20,8 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 20)  # Changed from 17 to 20
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(PICO_PLATFORM rp2040)
+set(PICO_COMPILER arm-none-eabi-gcc)
 
 # Build type if not set
 if(NOT CMAKE_BUILD_TYPE)
@@ -63,6 +65,14 @@ file(GLOB_RECURSE PROJECT_HEADERS
 add_executable(${PROJECT_NAME} 
     ${PROJECT_SOURCES}
     ${PROJECT_HEADERS}
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    pico_stdlib
+    hardware_pio
+    pico_multicore
+    hardware_dma
+    hardware_irq
 )
 
 # Generate PIO header file
