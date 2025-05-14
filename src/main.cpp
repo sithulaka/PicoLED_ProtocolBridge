@@ -21,7 +21,17 @@ void __isr dmxDataRecevied(DmxInput* instance) {
   }
 
 void Main_Core0() {
-    dmxInput.begin(DMX_IN_PIN, START_CHANNEL, NUM_CHANNELS);
+    DmxInput::return_code result = dmxInput.begin(DMX_IN_PIN, START_CHANNEL, NUM_CHANNELS);
+    if (result != DmxInput::SUCCESS) {
+        // Handle the error - blink LED or similar
+        while (1) {
+            // Flash red LED as error indicator
+            led.fast_set_color(1, 255, 0, 0);
+            sleep_ms(200);
+            led.fast_set_color(1, 0, 0, 0);
+            sleep_ms(200);
+        }
+    }
     dmxInput.read_async(buffer, dmxDataRecevied);
 }
 
