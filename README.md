@@ -65,6 +65,8 @@ export PICO_SDK_PATH=$HOME/pico-sdk
 
 # Download and set up Pico-DMX
 # Place in the Pico-DMX directory in your project
+git https://github.com/jostlowe/Pico-DMX.git
+
 ```
 
 ### **Windows Setup**
