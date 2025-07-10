@@ -55,7 +55,19 @@ public:
 
     void DmxArray_to_GRBArray_Converter(const uint8_t* DmxArray);
 
+    // Convert GRB LED array to DMX universe format
+    void GRBArray_to_DmxUniverse_Converter(uint8_t* dmx_universe, uint16_t start_channel = 1);
+
     void push_array();
+
+    // Method to get LED array data for DMX conversion
+    uint32_t* get_led_array() { return led_array; }
+    
+    // Method to get number of pixels
+    uint get_num_pixels() const { return num_pixels; }
+
+    // Debug function to print LED array state
+    void debug_print_led_array();
 
     ~PicoLED();
 };

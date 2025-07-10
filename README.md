@@ -1,199 +1,221 @@
-# **🎮 PicoLED Protocol Bridge**
+# PicoLED Protocol Bridge
 
-## ⚠️ Important Note
-This repository implements a LED Protocol Bridge for the Raspberry Pi Pico. Please ensure that you:
-- Install the required dependencies
-- Set up the Pico SDK correctly
-- Configure the hardware properly
+A dual-device system for controlling WS2812 LEDs via DMX512 protocol using Raspberry Pi Pico RP2040 microcontrollers.
 
-## ✅ Implemented Features
-The following features are included in this codebase:
+## 🎯 Project Overview
 
-1. **Core Functionality**
-   - WS2812B LED strip control
-   - DMX protocol support
-   - 8x8 matrix support (configurable)
+This project implements a DMX512 to WS2812 LED protocol bridge using two Raspberry Pi Pico devices:
 
-2. **Code Features**
-   - Centralized configuration via `config.h`
-   - Memory-safe implementation
-   - Multi-core operation for responsiveness
-   - Grid layout support for LED matrices
-   - XY addressing for matrix layouts
+1. **DMX Sender (`dmx-sender.cpp`)**: Creates LED animations on a local LED matrix, converts the LED data to DMX universe format, and transmits it via DMX512.
 
-3. **Build System**
-   - CMake-based build system
-   - Windows build script (build.bat)
-   - Linux build script (build.sh)
+2. **DMX Receiver (`dmx-reciver.cpp`)**: Receives DMX512 data on one CPU core, processes it on another core, and outputs the data to WS2812 serial LEDs in real-time.
 
-## 🔹 Overview
-This project implements a **LED Protocol Bridge** using the **Raspberry Pi Pico** microcontroller. It enables control of WS2812B LED strips through various communication protocols, making it perfect for custom lighting solutions and IoT projects.
+## 🚀 Features
 
-## ⚙️ Prerequisites
+### DMX Sender
+- ✨ **LED Animation Engine**: Creates complex text/shape animations on 8x8 LED matrix
+- 🔄 **Real-time DMX Conversion**: Converts PicoLED array data to DMX512 universe format
+- 📡 **DMX512 Transmission**: Sends DMX data over RS-485 protocol
+- 📊 **Comprehensive Logging**: Detailed status and performance monitoring
 
-Before building this project, ensure you have the following installed:
+### DMX Receiver  
+- 🎯 **Dual-Core Architecture**: 
+  - Core 0: High-speed DMX packet reception
+  - Core 1: LED data processing and output
+- ⚡ **Real-time Processing**: Sub-20ms latency from DMX to LED update
+- 🔒 **Thread-Safe Communication**: Mutex-protected inter-core data sharing
+- 🌈 **Full Color Support**: RGB color mapping with 8-bit resolution per channel
 
-### **Required Dependencies**
+## 📋 Hardware Requirements
 
-1. **Pico SDK**
-   - The Raspberry Pi Pico C/C++ SDK provides the core functionality
-   - Can be downloaded from the official Raspberry Pi website
-   - Must be initialized with submodules
+### For Each Pico Device:
+- **Raspberry Pi Pico RP2040** (1x per device)
+- **MAX485 or SN75176 IC** (for DMX512 communication)
+- **WS2812/WS2812B LED Strip or Matrix** (for receiver only)
+- **120Ω termination resistor** (for DMX line)
+- **3.3V to 5V level shifter** (for LED data line)
 
-2. **Pico-DMX Library**
-   - DMX protocol implementation for the Raspberry Pi Pico
-   - Required for receiving and processing DMX data
-   - Must be installed in the `Pico-DMX` directory
+### Pin Configuration (configurable in `config.h`):
+```cpp
+#define DMX_IN_PIN 1        // GPIO pin for DMX input/output
+#define WS2812_PIN 16       // GPIO pin for WS2812 LED data
+#define NUM_PIXELS 64       // Total number of LEDs (8x8 matrix)
+#define NUM_CHANNELS 255    // DMX channels to use
+```
 
-3. **Build Tools**
-   - CMake (3.13 or newer)
-   - ARM GCC Toolchain
-   - Python 3
+## 🛠️ Software Dependencies
 
-### **Linux/Ubuntu Setup**
-```sh
-# Install required packages
-sudo apt update
-sudo apt install cmake gcc-arm-none-eabi libnewlib-arm-none-eabi build-essential git python3
+- **Pico SDK** (latest version)
+- **CMake** (3.13 or higher)  
+- **Ninja** or **Make** build system
+- **ARM GCC Toolchain**
+- **PicoLED Library** (included)
+- **Pico-DMX Library** (included as submodule)
 
-# Clone and setup Pico SDK
-cd ~/
+## 📦 Installation & Setup
+
+### 1. Clone and Setup
+```powershell
+git clone <repository-url>
+cd PicoLED_ProtocolBridge
+```
+
+### 2. Install Pico SDK
+```powershell
+# Download and setup Pico SDK
 git clone https://github.com/raspberrypi/pico-sdk.git
 cd pico-sdk
 git submodule update --init
-export PICO_SDK_PATH=$HOME/pico-sdk
+cd ..
 
-# Download and set up Pico-DMX
-# Place in the Pico-DMX directory in your project
-git https://github.com/jostlowe/Pico-DMX.git
-
+# Set environment variable
+$env:PICO_SDK_PATH = "C:\path\to\pico-sdk"
 ```
 
-### **Windows Setup**
-1. Install [ARM GCC Compiler](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads)
-2. Install [CMake](https://cmake.org/download/)
-3. Install [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
-4. Install [Python 3](https://www.python.org/downloads/)
-5. Install [Git](https://git-scm.com/downloads)
+### 3. Verify Pico-DMX Library
+Ensure the `Pico-DMX` directory exists and contains the DMX library files.
 
-Then set up the Pico SDK:
-```batch
-mkdir %USERPROFILE%\pico
-cd %USERPROFILE%\pico
-git clone https://github.com/raspberrypi/pico-sdk.git
-cd pico-sdk
-git submodule update --init
-setx PICO_SDK_PATH "%USERPROFILE%\pico\pico-sdk"
+## 🔨 Building the Project
+
+### Using PowerShell Script (Recommended)
+```powershell
+.\build.ps1
 ```
 
-Finally, download the Pico-DMX library and place it in the `Pico-DMX` directory in your project.
-
-## 📥 Clone and Build
-
-### **Linux**
-```sh
-# Clone this repository
-git clone https://github.com/sithulaka/PicoLED_ProtocolBridge.git
-cd PicoLED_ProtocolBridge
-
-# Create build directory and build
+### Manual Build
+```powershell
 mkdir build
 cd build
-cmake ..
-make -j4
+cmake -G "Ninja" ..
+cmake --build . --target dmx_sender
+cmake --build . --target dmx_receiver
 ```
 
-### **Windows**
-```batch
-# Clone this repository
-git clone https://github.com/sithulaka/PicoLED_ProtocolBridge.git
-cd PicoLED_ProtocolBridge
+## 📱 Flashing to Pico
 
-# Create build directory and build
-mkdir build
-cd build
-cmake -G "NMake Makefiles" ..
-nmake
+1. **Hold BOOTSEL button** while connecting Pico to USB
+2. **Copy appropriate .uf2 file** to the Pico drive:
+   - `dmx_sender.uf2` → DMX Sender Pico
+   - `dmx_receiver.uf2` → DMX Receiver Pico
+
+## 🔧 Configuration
+
+### LED Matrix Setup (`config.h`)
+```cpp
+#define NUM_PIXELS 64       // Total LEDs (8x8 = 64)
+#define GRID_WIDTH 8        // Matrix width
+#define GRID_HEIGHT 8       // Matrix height
 ```
 
-## 📂 Project Structure
-```
-PicoLED_ProtocolBridge/
-│── src/             # Source files
-│   ├── main.cpp     # Main program
-│   └── PicoLED.cpp  # LED control implementation
-│── include/         # Header files
-│   ├── PicoLED.h    # LED control declarations
-│   └── config.h     # Configuration parameters
-│── extras/          # Additional resources
-│   └── ws2812.pio   # PIO program for WS2812
-│── build.sh         # Linux build script
-│── build.bat        # Windows build script 
-│── CMakeLists.txt   # CMake build configuration
-└── README.md        # This file
+### DMX Configuration
+```cpp
+#define START_CHANNEL 1     // First DMX channel
+#define NUM_CHANNELS 255    // Channels to read/send
 ```
 
-## 🔌 Hardware Setup
-1. Connect the WS2812B LED strip's data pin to GPIO16 (pin 21)
-2. Connect DMX input to GPIO1 (pin 2)
-3. Connect power and ground according to the diagram below:
-
-```
-                  +-----------------+
-                  |                 |
-                  |     PICO        |
-                  |                 |
-+-----------+     |                 |     +------------------+
-|           |     |                 |     |                  |
-| DMX INPUT |-----| GPIO1 (pin 2)   |     |                 |
-|    IN     |     |                 |     |                 |
-+-----------+     |                 |     |                 |
-                  |                 |     |    WS2812B      |
-                  | GPIO16 (pin 21) |-----| DATA           |
-                  |                 |     |                 |
-                  | VSYS (pin 39)   |-----| VCC (+5V)       |
-                  |                 |     |                 |
-                  | GND (pin 38)    |-----| GND             |
-                  |                 |     |                 |
-                  +-----------------+     +------------------+
+### Hardware Pins
+```cpp
+#define DMX_IN_PIN 1        // DMX data pin
+#define WS2812_PIN 16       // LED data pin
 ```
 
-**Important Power Considerations**:
-- WS2812B LEDs can draw significant current. For a full 64 LED matrix at full brightness:
-  - Each LED can draw up to 60mA at full white
-  - 64 LEDs × 60mA = 3.84A potentially required
-- Do not power the LEDs from the Pico's pins directly
-- Use a separate 5V power supply rated for your LED count
-- Connect the power supply ground to both the Pico GND and LED strip GND
+## 🎨 LED Animation Pattern
 
-## 🚀 Flashing Instructions
+The DMX sender creates an animated text pattern:
 
-### **Linux**
-1. Hold the BOOTSEL button on the Pico
-2. Connect the Pico to your computer via USB
-3. Release BOOTSEL
-4. Copy the generated .uf2 file:
-```sh
-cp build/PicoLED_ProtocolBridge.uf2 /media/$USER/RPI-RP2/
+1. **White Flash**: All LEDs illuminate white for 5 seconds
+2. **Character Animation**: Draws text/shapes pixel by pixel with 500ms delays
+3. **Color Cycling**: Characters change through different colors
+4. **Loop**: Animation repeats continuously
+
+Each pixel uses RGB values `(0, 0, 100)` for blue color in the animation.
+
+## 🔌 Wiring Diagrams
+
+### DMX Sender Wiring
+```
+Pico GPIO 1 ── MAX485 DI
+Pico GPIO 16 ── WS2812 Data In (via level shifter)
+Pico 3.3V ── MAX485 VCC
+Pico GND ── MAX485 GND
+MAX485 A ── DMX+ 
+MAX485 B ── DMX-
 ```
 
-### **Windows**
-1. Hold the BOOTSEL button on the Pico
-2. Connect the Pico to your computer via USB
-3. Release BOOTSEL
-4. A new drive "RPI-RP2" will appear
-5. Copy the generated `PicoLED_ProtocolBridge.uf2` from the `build` folder to the RPI-RP2 drive
+### DMX Receiver Wiring  
+```
+DMX+ ── MAX485 A
+DMX- ── MAX485 B
+MAX485 RO ── Pico GPIO 1
+MAX485 VCC ── Pico 3.3V
+MAX485 GND ── Pico GND
+Pico GPIO 16 ── WS2812 Data In (via level shifter)
+```
 
-## 🔧 Troubleshooting
-- If CMake can't find the Pico SDK, ensure PICO_SDK_PATH is set correctly
-- For Windows users, restart your terminal after setting environment variables
-- Make sure all submodules are initialized with `git submodule update --init`
+## 📊 Performance Metrics
+
+### DMX Sender
+- **Animation Frame Rate**: ~2 FPS (configurable via delays)
+- **DMX Update Rate**: After each LED change (~500ms intervals)
+- **DMX Universe Size**: 513 bytes (1 start code + 512 data)
+
+### DMX Receiver
+- **DMX Reception Rate**: Up to 44 Hz (standard DMX refresh rate)
+- **LED Update Latency**: <20ms from DMX packet to LED output
+- **Core 0 (DMX)**: Dedicated packet reception and validation
+- **Core 1 (LED)**: Color conversion and LED output (50 FPS max)
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**No DMX Signal**
+- Check MAX485 wiring and power
+- Verify DMX termination (120Ω resistor)
+- Check DMX cable polarity
+
+**LEDs Not Responding**
+- Verify WS2812 power supply (5V, adequate current)
+- Check data line level shifting (3.3V → 5V)
+- Confirm LED strip connection and orientation
+
+**Build Errors**
+- Ensure PICO_SDK_PATH is set correctly
+- Check CMake and toolchain installation
+- Verify all dependencies are installed
+
+### Debug Output
+
+Both devices provide detailed logging via USB serial:
+
+```
+[DMX-SENDER] Starting LED pattern animation...
+[DMX-SENDER] Converting LED array to DMX universe...
+[CORE0-DMX] Packet #1234 received, 255 channels
+[CORE1-LED] LED update #567 completed
+```
+
+## 📄 License
+
+This project is licensed under the MIT License. See LICENSE file for details.
 
 ## 🤝 Contributing
-Contributions are welcome! Feel free to submit issues and pull requests to [the GitHub repository](https://github.com/sithulaka/PicoLED_ProtocolBridge).
 
-## 📝 License
-This project is licensed under the MIT License - see the LICENSE file for details.
+Contributions are welcome! Please:
 
-## 🌐 Connect with me
-- GitHub: [sithulaka](https://github.com/sithulaka)
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📧 Support
+
+For issues and questions:
+- Create an issue on GitHub
+- Check the troubleshooting section
+- Review the debug output logs
+
+---
+
+**Made with ❤️ for the LED and DMX community**

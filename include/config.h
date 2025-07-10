@@ -8,7 +8,7 @@
 
 // DMX configuration
 #define START_CHANNEL 1     // Starting DMX channel
-#define NUM_CHANNELS 255    // Number of DMX channels to read
+#define NUM_CHANNELS 512    // Number of DMX channels to read
 
 // Hardware pin assignments
 #define DMX_IN_PIN 1        // GPIO pin for DMX input

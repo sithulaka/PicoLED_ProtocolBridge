@@ -47,37 +47,53 @@ pico_sdk_init()
 # Include Pico-DMX library
 include(${CMAKE_CURRENT_SOURCE_DIR}/Pico-DMX/interfaceLibForPicoSDK.cmake)
 
-# Source files (using GLOB but with existence checks)
-file(GLOB_RECURSE PROJECT_SOURCES
-    "src/*.cpp"
-    "src/*.c"
+# Common source files
+set(COMMON_SOURCES
+    src/PicoLED.cpp
 )
-# Header files
+
+# Common header files
 file(GLOB_RECURSE PROJECT_HEADERS
     "include/*.h"
     "include/*.hpp"
 )
-# Verify we found sources
-if(NOT PROJECT_SOURCES)
-    message(FATAL_ERROR "No source files found in src/ directory")
-endif()
-# Create the executable
-add_executable(${PROJECT_NAME}
-    ${PROJECT_SOURCES}
+
+# Create DMX Sender executable
+add_executable(dmx_sender
+    src/dmx-sender.cpp
+    ${COMMON_SOURCES}
     ${PROJECT_HEADERS}
 )
-# Generate PIO header files
-pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/extras/ws2812.pio)
-pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/Pico-DMX/extras/DmxInput.pio)
-pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/Pico-DMX/extras/DmxOutput.pio)
-# Include directories
-target_include_directories(${PROJECT_NAME} PRIVATE
+
+# Create DMX Receiver executable  
+add_executable(dmx_receiver
+    src/dmx-reciver.cpp
+    ${COMMON_SOURCES}
+    ${PROJECT_HEADERS}
+)
+
+# Generate PIO header files for both targets
+pico_generate_pio_header(dmx_sender ${CMAKE_CURRENT_LIST_DIR}/extras/ws2812.pio)
+pico_generate_pio_header(dmx_sender ${CMAKE_CURRENT_LIST_DIR}/Pico-DMX/extras/DmxOutput.pio)
+
+pico_generate_pio_header(dmx_receiver ${CMAKE_CURRENT_LIST_DIR}/extras/ws2812.pio)
+pico_generate_pio_header(dmx_receiver ${CMAKE_CURRENT_LIST_DIR}/Pico-DMX/extras/DmxInput.pio)
+
+# Include directories for both targets
+target_include_directories(dmx_sender PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/Pico-DMX/src
 )
-# Link libraries
-target_link_libraries(${PROJECT_NAME} PRIVATE
+
+target_include_directories(dmx_receiver PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/Pico-DMX/src
+)
+
+# Link libraries for both targets
+target_link_libraries(dmx_sender PRIVATE
     pico_stdlib
     hardware_pio
     pico_multicore
@@ -86,56 +102,69 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     hardware_uart
     picodmx
 )
-# USB and UART configuration
-pico_enable_stdio_usb(${PROJECT_NAME} 1)
-pico_enable_stdio_uart(${PROJECT_NAME} 0)
 
-# Generate additional output files
-pico_add_extra_outputs(${PROJECT_NAME})
+target_link_libraries(dmx_receiver PRIVATE
+    pico_stdlib
+    hardware_pio
+    pico_multicore
+    hardware_dma
+    hardware_irq
+    hardware_uart
+    picodmx
+)
+
+# USB and UART configuration for both targets
+pico_enable_stdio_usb(dmx_sender 1)
+pico_enable_stdio_uart(dmx_sender 0)
+
+pico_enable_stdio_usb(dmx_receiver 1)
+pico_enable_stdio_uart(dmx_receiver 0)
+
+# Generate additional output files for both targets
+pico_add_extra_outputs(dmx_sender)
+pico_add_extra_outputs(dmx_receiver)
 
 # Create an output directory in the project root
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/outputs)
 
-# Add a custom command to copy all output files correctly
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "Copying build artifacts to outputs directory..."
+# Add custom commands to copy output files for both targets
+add_custom_command(TARGET dmx_sender POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying DMX Sender build artifacts to outputs directory..."
     
-    # First verify these files exist before copying
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.elf
+        $<TARGET_FILE_DIR:dmx_sender>/dmx_sender.elf
         ${CMAKE_SOURCE_DIR}/outputs/
 
-    # Copy the other files with error handling for each
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.uf2
+        ${CMAKE_BINARY_DIR}/dmx_sender.uf2
         ${CMAKE_SOURCE_DIR}/outputs/
-        || echo "Warning: UF2 file not found"
+        || echo "Warning: DMX Sender UF2 file not found"
         
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.bin
-        ${CMAKE_SOURCE_DIR}/outputs/
-        || echo "Warning: BIN file not found"
-        
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.hex
-        ${CMAKE_SOURCE_DIR}/outputs/
-        || echo "Warning: HEX file not found"
-        
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.dis
-        ${CMAKE_SOURCE_DIR}/outputs/
-        || echo "Warning: DIS file not found"
-        
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_FILE:${PROJECT_NAME}>.map
-        ${CMAKE_SOURCE_DIR}/outputs/
-        || echo "Warning: MAP file not found"
-        
-    COMMENT "Copying build artifacts to outputs directory"
+    COMMENT "Copying DMX Sender build artifacts to outputs directory"
 )
 
-# Add flash target
-add_custom_target(flash
-    DEPENDS ${PROJECT_NAME}
-    COMMAND echo "Please manually copy ${CMAKE_SOURCE_DIR}/outputs/${PROJECT_NAME}.uf2 to your Pico"
+add_custom_command(TARGET dmx_receiver POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E echo "Copying DMX Receiver build artifacts to outputs directory..."
+    
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE_DIR:dmx_receiver>/dmx_receiver.elf
+        ${CMAKE_SOURCE_DIR}/outputs/
+
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_BINARY_DIR}/dmx_receiver.uf2
+        ${CMAKE_SOURCE_DIR}/outputs/
+        || echo "Warning: DMX Receiver UF2 file not found"
+        
+    COMMENT "Copying DMX Receiver build artifacts to outputs directory"
+)
+
+# Add flash targets for both
+add_custom_target(flash_sender
+    DEPENDS dmx_sender
+    COMMAND echo "Please manually copy ${CMAKE_SOURCE_DIR}/outputs/dmx_sender.uf2 to your Pico"
+)
+
+add_custom_target(flash_receiver
+    DEPENDS dmx_receiver
+    COMMAND echo "Please manually copy ${CMAKE_SOURCE_DIR}/outputs/dmx_receiver.uf2 to your Pico"
 )
