@@ -1,5 +1,6 @@
 #include "PicoLED.h"
 #include "config.h"
+#include <cstdio>
 
 PicoLED::PicoLED(PIO pio, uint sm, uint num_pixels, uint grid_width) {
     this->pio = pio;
@@ -54,7 +55,6 @@ void PicoLED::change_all_avalible_color(uint8_t r, uint8_t g, uint8_t b) {
 }
 
 void PicoLED::DmxArray_to_GRBArray_Converter(const uint8_t* DmxArray){
-    uint index = 0;
     // Calculate max iterations based on available pixels and channels
     // Each LED uses 3 channels (R,G,B)
     uint max_leds = NUM_CHANNELS / 3;

@@ -13,11 +13,17 @@
 #include "pico/mutex.h"
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
+#include "hardware/timer.h"
 #include "PicoLED.h"
 #include "config.h"
 #include "DmxInput.h"
 #include "ws2812.pio.h"
 #include <stdio.h>
+
+// Helper function to get current time in milliseconds
+static inline uint32_t millis() {
+    return to_ms_since_boot(get_absolute_time());
+}
 
 // Global instances
 DmxInput dmxInput;
@@ -50,7 +56,8 @@ void dmxInputCallback(DmxInput* instance) {
     }
     
     new_dmx_data = true;
-    dmx_packet_count++;
+    uint32_t temp_count = dmx_packet_count + 1;
+    dmx_packet_count = temp_count;
     
     mutex_exit(&data_mutex);
     
@@ -119,7 +126,6 @@ void core1_led_processor() {
     printf("[CORE1-LED] LED processor ready!\n");
     
     uint8_t local_rgb_buffer[NUM_PIXELS * 3];
-    uint32_t last_update_count = led_update_count;
     
     // Core 1 main loop - process DMX data and update LEDs
     while (true) {
@@ -147,7 +153,8 @@ void core1_led_processor() {
             // Push to physical LEDs
             led.push_array();
             
-            led_update_count++;
+            uint32_t temp_count = led_update_count + 1;
+            led_update_count = temp_count;
             
             printf("[CORE1-LED] LED update #%lu completed\n", led_update_count);
             
