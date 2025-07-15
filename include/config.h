@@ -11,6 +11,7 @@
 #define NUM_CHANNELS 512    // Number of DMX channels to read
 
 // Hardware pin assignments
-#define DMX_IN_PIN 1        // GPIO pin for DMX input
+#define DMX_IN_PIN 0        // GPIO pin for DMX input
+#define DMX_OUT_PIN 0       // GPIO pin for DMX output
 #define WS2812_PIN 16       // GPIO pin for WS2812 LED data
 #define WS2812_FREQ 800000  // WS2812 data frequency 

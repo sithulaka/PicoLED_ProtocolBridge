@@ -166,7 +166,7 @@ void PicoLED::debug_print_led_array() {
             uint8_t r = (led_array[i] >> 8) & 0xFF;   // Red
             uint8_t g = (led_array[i] >> 16) & 0xFF;  // Green  
             uint8_t b = led_array[i] & 0xFF;          // Blue
-            printf("[DEBUG] LED[%d]: R=%d G=%d B=%d (0x%08lX)\n", i, r, g, b, (unsigned long)led_array[i]);
+            printf("[DEBUG] LED[%d]: R=%d G=%d B=%d (0x%08X)\n", i, r, g, b, led_array[i]);
             count++;
             if (count >= 10) { // Limit output to prevent spam
                 printf("[DEBUG] ... and %d more non-zero LEDs\n", num_pixels - i - 1);
