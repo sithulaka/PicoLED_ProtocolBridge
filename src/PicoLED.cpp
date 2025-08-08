@@ -1,184 +1,417 @@
-#include "PicoLED.h"
-#include "config.h"
+#include "../include/PicoLED.h"
+#include <cstring>
 #include <cstdio>
 
-PicoLED::PicoLED(PIO pio, uint sm, uint num_pixels, uint grid_width) {
-    this->pio = pio;
-    this->sm = sm;
-    this->num_pixels = num_pixels;
-    this->grid_width = grid_width;
-    led_array = new uint32_t[num_pixels];
-    // Initialize all LEDs to off state
-    for (uint i = 0; i < num_pixels; i++) {
-        led_array[i] = 0;
-    }
-}
-
-void PicoLED::fast_set_color(uint address, uint8_t r, uint8_t g, uint8_t b) {
-    // Adjust the address to be zero-based for checking
-    if (address < 1 || address > num_pixels) {
-        return;  // Out of bounds
-    }
-    pixel_grb = urgb_u32(r, g, b);
-    led_array[address-1] = pixel_grb;
-    push_array();
-}
-
-// This function sets the color of a specific PicoLED
-void PicoLED::set_color(uint address, uint8_t r, uint8_t g, uint8_t b) {
-    // Adjust the address to be zero-based for checking
-    if (address < 1 || address > num_pixels) {
-        return;  // Out of bounds
-    }
-    pixel_grb = urgb_u32(r, g, b);
-    led_array[address-1] = pixel_grb;
-}
-
-
-// This function sets colors for all PicoLEDs
-void PicoLED::change_all_color(uint8_t r, uint8_t g, uint8_t b) {
-    pixel_grb = urgb_u32(r, g, b);
-    for (uint i = 0; i < num_pixels; ++i) {
-       led_array[i] = pixel_grb;
-    }
-}
-
-
-// This function sets colors for all available PicoLEDs
-void PicoLED::change_all_avalible_color(uint8_t r, uint8_t g, uint8_t b) {
-    pixel_grb = urgb_u32(r, g, b);
-    for (uint i = 0; i < num_pixels; ++i) {
-        if (led_array[i] != 0) {
-           led_array[i] = pixel_grb;
-        }
-    }
-}
-
-void PicoLED::DmxArray_to_GRBArray_Converter(const uint8_t* DmxArray){
-    // Calculate max iterations based on available pixels and channels
-    // Each LED uses 3 channels (R,G,B)
-    uint max_leds = NUM_CHANNELS / 3;
-    if (max_leds > num_pixels) {
-        max_leds = num_pixels;
-    }
+PicoLED::PicoLED(const PinConfig& pins, const LEDConfig& led_config) 
+    : _led_driver(nullptr),
+      _dmx_transmitter(nullptr),
+      _rs485_serial(nullptr),
+      _pins(pins),
+      _led_config(led_config),
+      _initialized(false),
+      _led_buffer(nullptr) {
     
-    for (uint i = 0; i < max_leds; i++) {
-        // DMX data starts from index 0 (R,G,B,R,G,B,...)
-        uint8_t r = DmxArray[i * 3];
-        uint8_t g = DmxArray[i * 3 + 1];
-        uint8_t b = DmxArray[i * 3 + 2];
-        
-        // Convert RGB to GRB format and store in LED array
-        pixel_grb = urgb_u32(r, g, b);
-        led_array[i] = pixel_grb;
-    }
-}
-
-void PicoLED::GRBArray_to_DmxUniverse_Converter(uint8_t* dmx_universe, uint16_t start_channel) {
-    // Set start code to 0 (standard DMX)
-    dmx_universe[0] = 0;
-    
-    // Convert LED pixels to RGB channels
-    // Each LED uses 3 DMX channels (R, G, B)
-    for (uint i = 0; i < num_pixels; i++) {
-        uint32_t pixel = led_array[i];
-        
-        // Extract RGB from the GRB format used by WS2812
-        uint8_t r = (pixel >> 8) & 0xFF;   // Red
-        uint8_t g = (pixel >> 16) & 0xFF;  // Green  
-        uint8_t b = pixel & 0xFF;          // Blue
-        
-        // Map to DMX channels (1-based indexing for start_channel)
-        uint dmx_base = start_channel + (i * 3);
-        if (dmx_base + 2 <= 512) { // DMX universe has 512 channels max
-            dmx_universe[dmx_base] = r;     // Red channel
-            dmx_universe[dmx_base + 1] = g; // Green channel
-            dmx_universe[dmx_base + 2] = b; // Blue channel
-        }
-    }
-}
-
-// Function to reset all PicoLEDs to off state
-void PicoLED::reset_all_color() {
-    change_all_color(0, 0, 0);
-}
-
-void PicoLED::push_array() {
-    for (uint i = 0; i < num_pixels; ++i) {
-        put_pixel(led_array[i]);
-    }
-}
-
-
-void PicoLED::iterate_led(uint8_t r, uint8_t g, uint8_t b, uint t) {
-    pixel_grb = urgb_u32(r, g, b);
-    for (uint i = 0; i < num_pixels; ++i) {
-        if (i <= t) {
-            put_pixel(pixel_grb);
-        } else {
-            put_pixel(0);
-        }
-    }
-}
-
-void PicoLED::Show_XY_Lines(){
-    // Show horizontal lines
-    for (uint i = 1; i <= grid_width; ++i) {
-        fast_set_color(i, 255, 0, 0);
-        sleep_ms(100);
-    }
-    
-    // Show vertical lines
-    for (uint i = 1; i <= num_pixels; i += grid_width) {
-        fast_set_color(i, 255, 0, 0);
-        sleep_ms(100);
-    }
-    
-    sleep_ms(1500);
-    reset_all_color(); 
-    push_array();
-}
-
-void PicoLED::fast_set_XY(uint X, uint Y, uint8_t r, uint8_t g, uint8_t b) {
-    uint address = (X + ((Y-1) * grid_width));
-    if (address < 1 || address > num_pixels) {
-        return;  // Out of bounds
-    }
-    pixel_grb = urgb_u32(r, g, b);
-    led_array[address-1] = pixel_grb;
-    push_array();
-}
-
-void PicoLED::set_XY(uint X, uint Y, uint8_t r, uint8_t g, uint8_t b) {
-    uint address = (X + ((Y-1) * grid_width));
-    if (address < 1 || address > num_pixels) {
-        return;  // Out of bounds
-    }
-    pixel_grb = urgb_u32(r, g, b);
-    led_array[address-1] = pixel_grb;
-}
-
-void PicoLED::debug_print_led_array() {
-    printf("[DEBUG] LED Array contents (%d pixels):\n", num_pixels);
-    uint count = 0;
-    for (uint i = 0; i < num_pixels; i++) {
-        if (led_array[i] != 0) {
-            uint8_t r = (led_array[i] >> 8) & 0xFF;   // Red
-            uint8_t g = (led_array[i] >> 16) & 0xFF;  // Green  
-            uint8_t b = led_array[i] & 0xFF;          // Blue
-            printf("[DEBUG] LED[%d]: R=%d G=%d B=%d (0x%08lX)\n", i, r, g, b, (unsigned long)led_array[i]);
-            count++;
-            if (count >= 10) { // Limit output to prevent spam
-                printf("[DEBUG] ... and %d more non-zero LEDs\n", num_pixels - i - 1);
-                break;
-            }
-        }
-    }
-    if (count == 0) {
-        printf("[DEBUG] All LEDs are OFF (0x00000000)\n");
-    }
+    // Initialize DMX universe to all zeros
+    memset(_dmx_universe, 0, sizeof(_dmx_universe));
 }
 
 PicoLED::~PicoLED() {
-    delete[] led_array;
+    if (_initialized) {
+        end();
+    }
+}
+
+bool PicoLED::begin() {
+    if (_initialized) {
+        return true;
+    }
+
+    // Initialize hardware resources
+    init_hardware();
+
+    // Create WS2812 LED driver
+    WS2812Driver::Config led_config = {
+        .pio_instance = _led_config.pio_instance,
+        .pio_sm = _led_config.pio_sm,
+        .gpio_pin = _pins.led_panel_pin,
+        .num_pixels = _led_config.num_pixels,
+        .format = WS2812Driver::ColorFormat::GRB,  // WS2812 native format
+        .use_dma = USE_DMA_FOR_LED_UPDATE
+    };
+
+    _led_driver = new WS2812Driver(led_config);
+    if (!_led_driver || !_led_driver->begin()) {
+        cleanup_resources();
+        return false;
+    }
+
+    // Create DMX512 transmitter
+    _dmx_transmitter = new DMX512Transmitter(_pins.dmx512_pin, uart1);
+    if (!_dmx_transmitter || _dmx_transmitter->begin() != DMX512Transmitter::ReturnCode::SUCCESS) {
+        cleanup_resources();
+        return false;
+    }
+
+    // Create RS485 serial interface
+    RS485Serial::Config rs485_config = {
+        .data_pin = _pins.rs485_data_pin,
+        .enable_pin = _pins.rs485_enable_pin,
+        .uart_instance = uart0,
+        .baud_rate = RS485_DEFAULT_BAUD,
+        .data_bits = 8,
+        .stop_bits = 1,
+        .parity_enable = false,
+        .parity_even = false,
+        .use_dma = true
+    };
+
+    _rs485_serial = new RS485Serial(rs485_config);
+    if (!_rs485_serial || _rs485_serial->begin() != RS485Serial::ReturnCode::SUCCESS) {
+        cleanup_resources();
+        return false;
+    }
+
+    // Allocate LED buffer
+    _led_buffer = _led_driver->getPixelBuffer();
+
+    _initialized = true;
+    return true;
+}
+
+void PicoLED::end() {
+    if (!_initialized) {
+        return;
+    }
+
+    cleanup_resources();
+    _initialized = false;
+}
+
+void PicoLED::init_hardware() {
+    // Initialize clocks and basic hardware if needed
+    // Most initialization is handled by individual drivers
+}
+
+void PicoLED::cleanup_resources() {
+    if (_led_driver) {
+        _led_driver->end();
+        delete _led_driver;
+        _led_driver = nullptr;
+    }
+
+    if (_dmx_transmitter) {
+        _dmx_transmitter->end();
+        delete _dmx_transmitter;
+        _dmx_transmitter = nullptr;
+    }
+
+    if (_rs485_serial) {
+        _rs485_serial->end();
+        delete _rs485_serial;
+        _rs485_serial = nullptr;
+    }
+
+    _led_buffer = nullptr;
+}
+
+// ===========================================
+// WS2812 LED Panel Methods
+// ===========================================
+
+void PicoLED::setLEDColor(uint index, uint8_t r, uint8_t g, uint8_t b) {
+    if (_led_driver) {
+        _led_driver->setPixelColor(index, r, g, b);
+    }
+}
+
+void PicoLED::setLEDColorXY(uint x, uint y, uint8_t r, uint8_t g, uint8_t b) {
+    if (_led_driver && x < _led_config.grid_width && y < _led_config.grid_height) {
+        uint index = y * _led_config.grid_width + x;
+        _led_driver->setPixelColor(index, r, g, b);
+    }
+}
+
+void PicoLED::setAllLEDs(uint8_t r, uint8_t g, uint8_t b) {
+    if (_led_driver) {
+        _led_driver->fill(r, g, b);
+    }
+}
+
+void PicoLED::clearAllLEDs() {
+    if (_led_driver) {
+        _led_driver->clear();
+    }
+}
+
+void PicoLED::updateLEDPanel() {
+    if (_led_driver) {
+        _led_driver->update(false);  // Non-blocking update
+    }
+}
+
+void PicoLED::dmxToLEDs(const uint8_t* dmx_data, uint16_t start_channel, uint num_leds) {
+    if (!_led_driver || !dmx_data) {
+        return;
+    }
+
+    uint leds_to_update = (num_leds == 0) ? _led_config.num_pixels : num_leds;
+    if (leds_to_update > _led_config.num_pixels) {
+        leds_to_update = _led_config.num_pixels;
+    }
+
+    // Convert DMX data to LED colors (3 channels per LED: R, G, B)
+    for (uint i = 0; i < leds_to_update; i++) {
+        uint16_t dmx_offset = (start_channel - 1) + (i * 3);
+        
+        // Ensure we don't exceed DMX universe bounds
+        if (dmx_offset + 2 < DMX_UNIVERSE_SIZE) {
+            uint8_t r = dmx_data[dmx_offset];
+            uint8_t g = dmx_data[dmx_offset + 1];
+            uint8_t b = dmx_data[dmx_offset + 2];
+            
+            _led_driver->setPixelColor(i, r, g, b);
+        }
+    }
+}
+
+// ===========================================
+// DMX512 Output Methods
+// ===========================================
+
+bool PicoLED::setDMXChannel(uint16_t channel, uint8_t value) {
+    if (_dmx_transmitter) {
+        bool success = _dmx_transmitter->setChannel(channel, value);
+        if (success && channel <= DMX_UNIVERSE_SIZE) {
+            _dmx_universe[channel - 1] = value;  // Keep local copy (0-based indexing)
+        }
+        return success;
+    }
+    return false;
+}
+
+uint8_t PicoLED::getDMXChannel(uint16_t channel) const {
+    if (_dmx_transmitter && channel >= 1 && channel <= DMX_UNIVERSE_SIZE) {
+        return _dmx_transmitter->getChannel(channel);
+    }
+    return 0;
+}
+
+bool PicoLED::setDMXChannelRange(uint16_t start_channel, const uint8_t* data, uint16_t length) {
+    if (_dmx_transmitter) {
+        bool success = _dmx_transmitter->setChannelRange(start_channel, data, length);
+        if (success && start_channel >= 1 && start_channel <= DMX_UNIVERSE_SIZE) {
+            // Update local copy
+            uint16_t end_channel = start_channel + length - 1;
+            if (end_channel > DMX_UNIVERSE_SIZE) {
+                end_channel = DMX_UNIVERSE_SIZE;
+            }
+            uint16_t copy_length = end_channel - start_channel + 1;
+            memcpy(&_dmx_universe[start_channel - 1], data, copy_length);
+        }
+        return success;
+    }
+    return false;
+}
+
+void PicoLED::setDMXUniverse(const uint8_t* data) {
+    if (_dmx_transmitter && data) {
+        _dmx_transmitter->setUniverse(data);
+        memcpy(_dmx_universe, data, DMX_UNIVERSE_SIZE);
+    }
+}
+
+void PicoLED::ledsToDMX(uint16_t start_channel) {
+    if (!_led_driver || !_dmx_transmitter) {
+        return;
+    }
+
+    uint32_t* led_buffer = _led_driver->getPixelBuffer();
+    if (!led_buffer) {
+        return;
+    }
+
+    // Convert LED data to DMX (3 channels per LED: R, G, B)
+    uint num_pixels = _led_config.num_pixels;
+    for (uint i = 0; i < num_pixels; i++) {
+        uint16_t dmx_channel = start_channel + (i * 3);
+        
+        // Stop if we exceed DMX universe size
+        if (dmx_channel + 2 > DMX_UNIVERSE_SIZE) {
+            break;
+        }
+
+        // Extract RGB from LED buffer
+        uint8_t r, g, b, w;
+        _led_driver->nativeToColor(led_buffer[i], r, g, b, w);
+        
+        // Set DMX channels
+        _dmx_transmitter->setChannel(dmx_channel, r);
+        _dmx_transmitter->setChannel(dmx_channel + 1, g);
+        _dmx_transmitter->setChannel(dmx_channel + 2, b);
+
+        // Update local copy
+        _dmx_universe[dmx_channel - 1] = r;
+        _dmx_universe[dmx_channel] = g;
+        _dmx_universe[dmx_channel + 1] = b;
+    }
+}
+
+void PicoLED::clearDMXUniverse() {
+    if (_dmx_transmitter) {
+        _dmx_transmitter->clearUniverse();
+        memset(_dmx_universe, 0, sizeof(_dmx_universe));
+    }
+}
+
+bool PicoLED::transmitDMX() {
+    if (_dmx_transmitter) {
+        return _dmx_transmitter->transmit();
+    }
+    return false;
+}
+
+bool PicoLED::isDMXBusy() {
+    if (_dmx_transmitter) {
+        return _dmx_transmitter->isBusy();
+    }
+    return false;
+}
+
+void PicoLED::waitDMXCompletion() {
+    if (_dmx_transmitter) {
+        _dmx_transmitter->waitForCompletion(1000);  // 1 second timeout
+    }
+}
+
+// ===========================================
+// RS485 Serial Communication Methods
+// ===========================================
+
+bool PicoLED::sendRS485Frame(const uint8_t* data, uint16_t length) {
+    if (_rs485_serial) {
+        return _rs485_serial->sendFrame(data, length, false) == RS485Serial::ReturnCode::SUCCESS;
+    }
+    return false;
+}
+
+bool PicoLED::sendRS485String(const char* str) {
+    if (_rs485_serial) {
+        return _rs485_serial->sendString(str, false) == RS485Serial::ReturnCode::SUCCESS;
+    }
+    return false;
+}
+
+bool PicoLED::isRS485Busy() {
+    if (_rs485_serial) {
+        return _rs485_serial->isBusy();
+    }
+    return false;
+}
+
+void PicoLED::waitRS485Completion() {
+    if (_rs485_serial) {
+        _rs485_serial->waitForCompletion(1000);  // 1 second timeout
+    }
+}
+
+bool PicoLED::setRS485BaudRate(uint32_t baud_rate) {
+    if (_rs485_serial) {
+        return _rs485_serial->setBaudRate(baud_rate);
+    }
+    return false;
+}
+
+// ===========================================
+// Status and Utility Methods
+// ===========================================
+
+void PicoLED::updateAll() {
+    // Update all protocols in coordinated manner
+    if (_led_driver && !_led_driver->isBusy()) {
+        _led_driver->update(false);
+    }
+    
+    if (_dmx_transmitter && !_dmx_transmitter->isBusy()) {
+        _dmx_transmitter->transmit();
+    }
+}
+
+void PicoLED::enableProtocol(ProtocolType protocol, bool enable) {
+    // This is a placeholder - actual implementation would enable/disable
+    // specific protocol features based on the type
+    switch (protocol) {
+        case ProtocolType::WS2812_LED_PANEL:
+            // Enable/disable LED driver
+            break;
+        case ProtocolType::DMX512_OUTPUT:
+            // Enable/disable DMX transmitter
+            break;
+        case ProtocolType::RS485_SERIAL:
+            // Enable/disable RS485 serial
+            break;
+    }
+}
+
+bool PicoLED::isProtocolReady(ProtocolType protocol) const {
+    switch (protocol) {
+        case ProtocolType::WS2812_LED_PANEL:
+            return _led_driver && _led_driver->isInitialized();
+        case ProtocolType::DMX512_OUTPUT:
+            return _dmx_transmitter && _dmx_transmitter->isInitialized();
+        case ProtocolType::RS485_SERIAL:
+            return _rs485_serial && _rs485_serial->isInitialized();
+        default:
+            return false;
+    }
+}
+
+void PicoLED::printStatus() {
+    printf("=== PicoLED Protocol Bridge Status ===\n");
+    printf("Initialized: %s\n", _initialized ? "Yes" : "No");
+    printf("Pin Configuration:\n");
+    printf("  LED Panel Pin: %u\n", _pins.led_panel_pin);
+    printf("  DMX512 Pin: %u\n", _pins.dmx512_pin);
+    printf("  RS485 Data Pin: %u\n", _pins.rs485_data_pin);
+    printf("  RS485 Enable Pin: %u\n", _pins.rs485_enable_pin);
+    
+    printf("\nLED Configuration:\n");
+    printf("  Pixels: %u (%ux%u grid)\n", _led_config.num_pixels, 
+           _led_config.grid_width, _led_config.grid_height);
+    
+    printf("\nProtocol Status:\n");
+    printf("  WS2812 LED Panel: %s\n", isProtocolReady(ProtocolType::WS2812_LED_PANEL) ? "Ready" : "Not Ready");
+    printf("  DMX512 Output: %s\n", isProtocolReady(ProtocolType::DMX512_OUTPUT) ? "Ready" : "Not Ready");
+    printf("  RS485 Serial: %s\n", isProtocolReady(ProtocolType::RS485_SERIAL) ? "Ready" : "Not Ready");
+    
+    // Print detailed status for each protocol
+    if (_led_driver) {
+        printf("\n");
+        _led_driver->printStatus();
+    }
+    
+    if (_dmx_transmitter) {
+        printf("\n");
+        _dmx_transmitter->printStatus();
+    }
+    
+    if (_rs485_serial) {
+        printf("\n");
+        _rs485_serial->printStatus();
+    }
+}
+
+void PicoLED::printLEDState() {
+    if (_led_driver) {
+        _led_driver->printPixelData(0, 8);  // Print first 8 pixels
+    } else {
+        printf("LED driver not initialized\n");
+    }
+}
+
+void PicoLED::printDMXState() {
+    if (_dmx_transmitter) {
+        _dmx_transmitter->printFrame(1, 16);  // Print first 16 channels
+    } else {
+        printf("DMX transmitter not initialized\n");
+    }
 }

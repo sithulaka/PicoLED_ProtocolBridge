@@ -1,64 +1,121 @@
-# Ignore SDK and DMX directories
-pico-sdk/
-Pico-DMX/
-
 # Build directories
 build/
-outputs/
-_deps/
-pioasm/
-pioasm-install/
-
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-*.elf
-
-# Generated files
-*.pio.h
-
+Build/
+BUILD/
+cmake-build-*/
+pico-sdk/
 # CMake generated files
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
 Makefile
+*.cmake
+!CMakeLists.txt
+!cmake/
 
-# IDE specific files
+# Generated binaries
+*.elf
+*.bin
+*.hex
+*.uf2
+*.map
+*.dis
+*.lst
+
+# Object files
+*.o
+*.obj
+*.a
+*.lib
+
+# Dependency files
+*.d
+
+# Temporary files
+*.tmp
+*.temp
+*~
+.DS_Store
+Thumbs.db
+
+# IDE files
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+.project
+.cproject
+.settings/
 
-# macOS specific
+# Pico SDK (users should download separately)
+pico-sdk/
+pico_sdk_import.cmake
+
+# Third party libraries (should be handled via git submodules or separate download)
+third_party/
+lib/
+libs/
+
+# Generated documentation
+docs/html/
+docs/latex/
+doxygen_warnings.txt
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Package files
+*.tar.gz
+*.zip
+*.7z
+
+# Log files
+*.log
+
+# Test results
+test_results/
+
+# Coverage reports
+coverage/
+*.gcov
+*.gcda
+*.gcno
+
+# Static analysis
+cppcheck_report.xml
+scan-build/
+
+# Editor backups
+*.bak
+*.backup
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
 
-# Pico specific
-*.uf2
-*.bin
-*.dis
-*.hex
-*.map
-*.padded
+# Custom build scripts output
+*.size
+*.memory
+
+# Debugging files
+*.gdb_history
+
+# Local environment files
+.env
+.env.local
+
+# User-specific configuration
+local_config.h
+user_config.h
+
+# Generated version files
+version.h
+build_info.h
